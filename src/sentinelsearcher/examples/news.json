@@ -1,0 +1,20 @@
+[
+  {
+    "title": "Launch of Sentinel Searcher Automates Web Monitoring for Repos",
+    "url": "https://example.com/tech/sentinel-searcher-launch",
+    "date": "2025-01-28",
+    "summary": "Overview of a tool that searches the web and opens PRs with structured updates."
+  },
+  {
+    "title": "Interview: Building Practical Agents for Content Updates",
+    "url": "https://example.com/interviews/practical-agents-content-updates",
+    "date": "2024-12-12",
+    "summary": "Discussion on schema-first agent design and safe PR workflows."
+  },
+  {
+    "title": "Case Study: Automating News Pages with LLMs",
+    "url": "https://example.com/case-studies/automating-news-pages-llms",
+    "date": "2024-10-03",
+    "summary": "A walkthrough of using web search and validation to keep sites fresh."
+  }
+]

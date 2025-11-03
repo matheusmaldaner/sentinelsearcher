@@ -1,0 +1,26 @@
+api:
+  provider: "anthropic"
+  model: "claude-sonnet-4-20250514"
+
+jobs:
+  - name: "academic-awards"
+    instruction: "Find recent academic awards and honors for Matheus Kunzler Maldaner in AI research"
+    file_path: "examples/awards.json"
+    schema:
+      type: "array"
+      items:
+        award_name: "string"
+        award_date: "YYYY-MM-DD"
+        award_picture: "string"
+        award_description: "string"
+
+  - name: "news-updates"
+    instruction: "Find recent news mentions of Matheus Kunzler Maldaner news in leadership at UF"
+    file_path: "examples/news.json"
+    schema:
+      type: "array"
+      items:
+        title: "string"
+        url: "string"
+        date: "YYYY-MM-DD"
+        summary: "string"

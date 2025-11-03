@@ -2,8 +2,122 @@
 import anthropic
 import os
 from dotenv import load_dotenv
+from typing import Any, Dict, List, Tuple
+from pathlib import Path
+import json
+import sys
+import argparse
 
-def main():
+def _read_json_array(path: Path) -> List[Dict[str, Any]]:
+    if not path.exists():
+        return []
+    try:
+        return json.loads(path.read_text() or "[]")
+    except Exception:
+        return []
+    
+def _extract_json_from_text(text: str) -> Any:
+    import json, re
+    # Try direct parse
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
+    # Try fenced code block
+    m = re.search(r"```(?:json)?\s*(\{[\s\S]*?\}|\[[\s\S]*?\])\s*```", text, re.MULTILINE)
+    if m:
+        return json.loads(m.group(1))
+    # Try first top-level array/object
+    m = re.search(r"(\{[\s\S]*\}|\[[\s\S]*\])", text)
+    if m:
+        return json.loads(m.group(1))
+    raise ValueError("Could not parse JSON from model output")
+
+def _write_json_array(path: Path, data: List[Dict[str, Any]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+
+def _dedupe(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    seen = set()
+    out = []
+    for it in items:
+        key = json.dumps(it, sort_keys=True)
+        if key not in seen:
+            seen.add(key)
+            out.append(it)
+    return out
+
+def _validate_simple_schema(data: Any, schema: Dict[str, Any]) -> Tuple[bool, str]:
+    # Supports schema like:
+    # { type: "array", items: { field: "string" | "YYYY-MM-DD" | "example.png" } }
+    if schema.get("type") != "array":
+        return False, "Only array schemas are supported"
+    if not isinstance(data, list):
+        return False, "Model did not return an array"
+    item_shape = schema.get("items", {})
+    for idx, item in enumerate(data):
+        if not isinstance(item, dict):
+            return False, f"Item {idx} is not an object"
+        for k, t in item_shape.items():
+            if k not in item:
+                return False, f"Missing key '{k}' in item {idx}"
+            v = item[k]
+            if t in ("string", "example.png", "YYYY-MM-DD") and not isinstance(v, str):
+                return False, f"Key '{k}' in item {idx} should be string"
+            # Light date check
+            if t == "YYYY-MM-DD" and isinstance(v, str):
+                parts = v.split("-")
+                if len(parts) != 3 or not all(p.isdigit() for p in parts):
+                    return False, f"Key '{k}' in item {idx} should be YYYY-MM-DD"
+    return True, ""
+
+def run_job(client: anthropic.Anthropic, model: str, instruction: str, schema: Dict[str, Any], file_path: str) -> List[Dict[str, Any]]:
+    dst = Path(file_path)
+    existing = _read_json_array(dst)
+
+    system = (
+        "You are a precise web researcher.\n"
+        "Return ONLY valid JSON, no prose. Do not wrap in markdown.\n"
+        f"The JSON MUST conform to this shape (array of objects): {json.dumps(schema, indent=2)}\n"
+        "Do not duplicate items that already exist in EXISTING_CONTENT.\n"
+        "If nothing new is found, return an empty array []."
+    )
+    print(system)
+
+    user = (
+        f"Task: {instruction}\n\n"
+        f"EXISTING_CONTENT:\n{json.dumps(existing, ensure_ascii=False, indent=2)}\n"
+    )
+
+    msg = client.messages.create(
+        model=model,
+        max_tokens=2048,
+        system=system,
+        messages=[{"role": "user", "content": user}],
+        tools=[{
+            "type": "web_search_20250305",
+            "name": "web_search",
+            "max_uses": 5
+        }],
+    )
+
+    # Anthropic content is a list of text blocks
+    text = "".join(getattr(b, "text", "") for b in msg.content if getattr(b, "type", "") == "text")
+    data = _extract_json_from_text(text)
+
+    print(data)
+    ok, err = _validate_simple_schema(data, schema)
+    if not ok:
+        raise ValueError(f"Model output failed schema validation: {err}")
+
+    merged = _dedupe([*existing, *data])
+    if merged != existing:
+        _write_json_array(dst, merged)
+    return data
+
+
+
+def main_deprecated():
     # load .env file into environment variables
     load_dotenv()
 
@@ -32,6 +146,49 @@ def main():
     print(message.content)
 
 
+from sentinelsearcher.config import load_config
+#from .runner import run_job
+
+def main():
+    load_dotenv()  # loads .env into os.environ
+
+    parser = argparse.ArgumentParser(description="Sentinel Searcher")
+    parser.add_argument("--config", default="sentinel.config.yaml", help="Path to config YAML")
+    args = parser.parse_args()
+
+    print("Welcome to Sentinel Searcher!")
+
+    provider = None
+    model = None
+    try:
+        cfg = load_config(args.config)
+        provider = cfg.api.provider.lower()
+        model = cfg.api.model
+    except Exception as e:
+        print(f"Failed to load config: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if provider not in ("anthropic", "openai"):
+        print(f"Unsupported provider: {provider}", file=sys.stderr)
+        sys.exit(1)
+
+    if provider == "anthropic":
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            print("ANTHROPIC_API_KEY not set", file=sys.stderr)
+            sys.exit(1)
+        client = anthropic.Anthropic(api_key=api_key)
+    else:
+        print("OpenAI provider not implemented yet in this runner.", file=sys.stderr)
+        sys.exit(1)
+
+    for job in cfg.jobs:
+        try:
+            added = run_job(client, model, job.instruction, job.schema, job.file_path)
+            print(f"[{job.name}] completed. New items: {len(added)}")
+        except Exception as e:
+            print(f"[{job.name}] failed: {e}", file=sys.stderr)
 
 if __name__ == "__main__":
     main()
+
