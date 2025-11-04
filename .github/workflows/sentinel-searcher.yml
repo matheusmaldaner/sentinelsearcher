@@ -26,10 +26,17 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install package (editable) and deps
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ./sentinelsearcher
+          python -m pip install anthropic pyyaml python-dotenv
+
+      - name: Verify repository paths
+        run: |
+          pwd
+          ls -la
+          ls -la sentinelsearcher || true
+          ls -la sentinelsearcher/src/sentinelsearcher || true
 
       - name: Run Sentinel Searcher
         working-directory: sentinelsearcher/src/sentinelsearcher
