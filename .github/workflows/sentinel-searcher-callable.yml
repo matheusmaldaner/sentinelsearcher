@@ -1,0 +1,70 @@
+name: Reusable - Sentinel Searcher
+
+on:
+  workflow_call:
+    inputs:
+      config_path:
+        description: "Path to sentinel.config.yaml (relative to working-directory)"
+        required: true
+        type: string
+      working_directory:
+        description: "Directory to run the command from"
+        required: false
+        default: "."
+        type: string
+      python_version:
+        description: "Python version"
+        required: false
+        default: "3.11"
+        type: string
+      package_ref:
+        description: "Git ref (branch/tag/SHA) of matheusmaldaner/sentinelbrowser to install from"
+        required: false
+        default: "main"
+        type: string
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version }}
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "git+https://github.com/matheusmaldaner/sentinelbrowser@${{ inputs.package_ref }}"
+
+      - name: Run Sentinel Searcher
+        working-directory: ${{ inputs.working_directory }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          sentinelsearcher --config "${{ inputs.config_path }}"
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update content via Sentinel Searcher"
+          branch: "sentinel-update/${{ github.run_number }}"
+          title: "Content update from Sentinel Searcher"
+          body: |
+            Automated content update based on web search results.
+            - Reusable workflow caller: ${{ github.repository }}
+            - Run: ${{ github.run_id }}
+          labels: |
+            automated
+            content-update
