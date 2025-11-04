@@ -40,9 +40,9 @@ Add this minimal workflow to `.github/workflows/sentinel-searcher.yml` in your r
 name: Sentinel Searcher
 
 on:
-	schedule:
-		- cron: "0 3 * * *"  # daily
-	workflow_dispatch: {}
+    schedule:
+        - cron: "0 3 * * *"  # daily
+    workflow_dispatch: {}
 
 jobs:
     run:
