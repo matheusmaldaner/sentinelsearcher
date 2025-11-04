@@ -7,6 +7,7 @@ from pathlib import Path
 import json
 import sys
 import argparse
+import time
 
 def _read_json_array(path: Path) -> List[Dict[str, Any]]:
     if not path.exists():
@@ -71,7 +72,7 @@ def _validate_simple_schema(data: Any, schema: Dict[str, Any]) -> Tuple[bool, st
                     return False, f"Key '{k}' in item {idx} should be YYYY-MM-DD"
     return True, ""
 
-def run_job(client: anthropic.Anthropic, model: str, instruction: str, schema: Dict[str, Any], file_path: str) -> List[Dict[str, Any]]:
+def run_job(client: anthropic.Anthropic, model: str, instruction: str, schema: Dict[str, Any], file_path: str, max_retries: int = 3) -> List[Dict[str, Any]]:
     dst = Path(file_path)
     existing = _read_json_array(dst)
 
@@ -89,31 +90,43 @@ def run_job(client: anthropic.Anthropic, model: str, instruction: str, schema: D
         f"EXISTING_CONTENT:\n{json.dumps(existing, ensure_ascii=False, indent=2)}\n"
     )
 
-    msg = client.messages.create(
-        model=model,
-        max_tokens=2048,
-        system=system,
-        messages=[{"role": "user", "content": user}],
-        tools=[{
-            "type": "web_search_20250305",
-            "name": "web_search",
-            "max_uses": 5
-        }],
-    )
+    # Retry logic with exponential backoff for rate limits
+    for attempt in range(max_retries):
+        try:
+            msg = client.messages.create(
+                model=model,
+                max_tokens=2048,
+                system=system,
+                messages=[{"role": "user", "content": user}],
+                tools=[{
+                    "type": "web_search_20250305",
+                    "name": "web_search",
+                    "max_uses": 5
+                }],
+            )
 
-    # Anthropic content is a list of text blocks
-    text = "".join(getattr(b, "text", "") for b in msg.content if getattr(b, "type", "") == "text")
-    data = _extract_json_from_text(text)
+            # Anthropic content is a list of text blocks
+            text = "".join(getattr(b, "text", "") for b in msg.content if getattr(b, "type", "") == "text")
+            data = _extract_json_from_text(text)
 
-    print(data)
-    ok, err = _validate_simple_schema(data, schema)
-    if not ok:
-        raise ValueError(f"Model output failed schema validation: {err}")
+            print(data)
+            ok, err = _validate_simple_schema(data, schema)
+            if not ok:
+                raise ValueError(f"Model output failed schema validation: {err}")
 
-    merged = _dedupe([*existing, *data])
-    if merged != existing:
-        _write_json_array(dst, merged)
-    return data
+            merged = _dedupe([*existing, *data])
+            if merged != existing:
+                _write_json_array(dst, merged)
+            return data
+
+        except anthropic.RateLimitError:
+            if attempt < max_retries - 1:
+                # Exponential backoff: 2^attempt * 30 seconds
+                wait_time = (2 ** attempt) * 30
+                print(f"Rate limit hit. Retrying in {wait_time} seconds... (attempt {attempt + 1}/{max_retries})", file=sys.stderr)
+                time.sleep(wait_time)
+            else:
+                raise  # Re-raise on last attempt
 
 
 
@@ -182,10 +195,18 @@ def main():
         print("OpenAI provider not implemented yet in this runner.", file=sys.stderr)
         sys.exit(1)
 
-    for job in cfg.jobs:
+    delay_between_jobs = getattr(cfg.api, 'delay_between_jobs', 60)
+
+    for idx, job in enumerate(cfg.jobs):
         try:
             added = run_job(client, model, job.instruction, job.schema, job.file_path)
             print(f"[{job.name}] completed. New items: {len(added)}")
+
+            # Add delay between jobs to avoid rate limits (except after last job)
+            if idx < len(cfg.jobs) - 1 and delay_between_jobs > 0:
+                print(f"Waiting {delay_between_jobs} seconds before next job to avoid rate limits...")
+                time.sleep(delay_between_jobs)
+
         except Exception as e:
             print(f"[{job.name}] failed: {e}", file=sys.stderr)
 

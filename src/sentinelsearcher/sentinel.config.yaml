@@ -1,6 +1,7 @@
 api:
   provider: "anthropic"
   model: "claude-sonnet-4-20250514"
+  delay_between_jobs: 60  # Seconds to wait between jobs to avoid rate limits
 
 jobs:
   - name: "academic-awards"

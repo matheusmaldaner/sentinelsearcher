@@ -7,6 +7,7 @@ from pathlib import Path
 class APIConfig:
     provider: str
     model: str
+    delay_between_jobs: int = 60  # Default 60 seconds delay between jobs
 
 @dataclass
 class Job:
