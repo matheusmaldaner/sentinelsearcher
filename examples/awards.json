@@ -1,50 +1,68 @@
 [
   {
-    "award_name": "Best Paper Award - Synthetic AI Summit",
-    "award_date": "2024-11-15",
-    "award_picture": "synthetic-ai-best-paper.png",
-    "award_description": "Recognized for work on scalable retrieval-augmented generation pipelines."
-  },
-  {
-    "award_name": "Emerging Researcher Award",
-    "award_date": "2025-03-02",
-    "award_picture": "emerging-researcher-2025.png",
-    "award_description": "Honors impactful early-career contributions in applied machine learning."
-  },
-  {
-    "award_name": "Open Source Contributor of the Year",
-    "award_date": "2023-12-05",
-    "award_picture": "oss-contributor-2023.png",
-    "award_description": "Awarded for leadership and sustained contributions to ML tooling."
-  },
-  {
     "award_name": "University of Florida Hall of Fame",
     "award_date": "2025-03-01",
-    "award_picture": "uf-hall-of-fame-2025.png",
-    "award_description": "Inducted into UF Hall of Fame for outstanding commitment to improving the university through campus involvement, organized activities, and scholastic achievement in AI research."
+    "award_picture": "",
+    "award_description": "Inducted into the prestigious University of Florida Hall of Fame, one of the most prestigious honors awarded to students by the Division of Student Life at the University of Florida. Since 1921, this award has recognized seniors and graduate students who have consistently demonstrated outstanding commitment to improving the University of Florida through campus and community involvement, participation in organized campus activities, and scholastic achievement."
   },
   {
     "award_name": "UF AI Scholar",
     "award_date": "2024-01-01",
-    "award_picture": "uf-ai-scholar-2024.png",
-    "award_description": "Scholarship recognizing excellence in artificial intelligence research and academic achievement."
+    "award_picture": "",
+    "award_description": "Academic scholarship awarded to recognize outstanding students in artificial intelligence at the University of Florida."
   },
   {
     "award_name": "HSF Scholar",
     "award_date": "2024-01-01",
-    "award_picture": "hsf-scholar-2024.png",
-    "award_description": "Hispanic Scholarship Fund recognition for academic excellence and leadership in STEM."
+    "award_picture": "",
+    "award_description": "Hispanic Scholarship Fund scholarship awarded to outstanding Hispanic students pursuing higher education."
   },
   {
     "award_name": "Joe Glover's Data Science Scholarship",
     "award_date": "2024-01-01",
-    "award_picture": "glover-data-science-scholarship-2024.png",
-    "award_description": "University of Florida scholarship for outstanding data science students, named after former Provost Joe Glover."
+    "award_picture": "",
+    "award_description": "Academic scholarship in Data Science at the University of Florida, named after Joe Glover."
   },
   {
     "award_name": "UF Student Organization of the Year Award",
     "award_date": "2024-01-01",
-    "award_picture": "uf-org-year-award-2024.png",
-    "award_description": "Awarded to the Data Science and Informatics organization under Matheus's leadership for outstanding contributions to campus life."
+    "award_picture": "",
+    "award_description": "Award given to the Data Science and Informatics (DSI) student organization under Matheus' leadership as President, recognizing outstanding contributions to the university community."
+  },
+  {
+    "award_name": "ASA DataFest - Best Overall",
+    "award_date": "2024-01-01",
+    "award_picture": "",
+    "award_description": "Best Overall award at the American Statistical Association DataFest competition, a prestigious data science competition where teams of undergraduates work to find and share meaning in large, complex datasets."
+  },
+  {
+    "award_name": "OSC Hackathon - Best AI Hack",
+    "award_date": "2024-01-01",
+    "award_picture": "",
+    "award_description": "Best AI Hack award at the OSC Hackathon competition, recognizing innovative artificial intelligence solutions."
+  },
+  {
+    "award_name": "UF Swamphacks X - Best AI Hack",
+    "award_date": "2024-01-01",
+    "award_picture": "",
+    "award_description": "Best AI Hack award at the University of Florida's Swamphacks X hackathon competition."
+  },
+  {
+    "award_name": "UF ShellHacks - Most Popular",
+    "award_date": "2024-01-01",
+    "award_picture": "",
+    "award_description": "Most Popular award at the University of Florida ShellHacks competition."
+  },
+  {
+    "award_name": "UF AI Days Generative AI Arts - 2nd Place",
+    "award_date": "2024-01-01",
+    "award_picture": "",
+    "award_description": "Second place award in the Generative AI Arts competition at the University of Florida AI Days event."
+  },
+  {
+    "award_name": "UF AI Days Hackathon - Most Popular",
+    "award_date": "2024-01-01",
+    "award_picture": "",
+    "award_description": "Most Popular award at the University of Florida AI Days Hackathon competition."
   }
 ]
