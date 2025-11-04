@@ -45,12 +45,12 @@ on:
 	workflow_dispatch: {}
 
 jobs:
-	run:
-		uses: matheusmaldaner/sentinelsearcher/.github/workflows/sentinel-searcher-callable.yml@main
-		with:
-			working_directory: "."  # adjust if needed
-			config_path: "sentinel.config.yaml"  # path in the target repo
-			python_version: "3.11"
-		secrets:
-			ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    run:
+        uses: matheusmaldaner/sentinelsearcher/.github/workflows/sentinel-searcher-callable.yml@main
+        with:
+            working_directory: "."  # adjust if needed
+            config_path: "sentinel.config.yaml"  # path in the target repo
+            python_version: "3.11"
+        secrets:
+            ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
