@@ -4,6 +4,7 @@ api:
   delay_between_jobs: 60  # Seconds to wait between jobs to avoid rate limits
 
 jobs:
+  # Example: Track academic awards
   - name: "academic-awards"
     instruction: "Find recent academic awards and honors for Matheus Kunzler Maldaner in AI research"
     file_path: "examples/awards.json"
@@ -15,6 +16,7 @@ jobs:
         award_picture: "string"
         award_description: "string"
 
+  # Example: Track news mentions
   - name: "news-updates"
     instruction: "Find recent news mentions of Matheus Kunzler Maldaner news in leadership at UF"
     file_path: "examples/news.json"

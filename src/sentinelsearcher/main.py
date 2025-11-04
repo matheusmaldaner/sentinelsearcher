@@ -8,6 +8,8 @@ import json
 import sys
 import argparse
 import time
+from sentinelsearcher.config import load_config
+
 
 def _read_json_array(path: Path) -> List[Dict[str, Any]]:
     if not path.exists():
@@ -159,8 +161,6 @@ def main_deprecated():
     print(message.content)
 
 
-from sentinelsearcher.config import load_config
-#from .runner import run_job
 
 def main():
     load_dotenv()  # loads .env into os.environ

@@ -26,7 +26,7 @@ You must then authenticate yourself by either:
 
 You must also allow GitHub actions to create PRs:
 ```bash
-gh api -X PUT /repos/matheusmaldaner/sentinelbrowser/actions/permissions/workflow \
+gh api -X PUT /repos/matheusmaldaner/sentinelsearcher/actions/permissions/workflow \
   -f default_workflow_permissions=write \
   -F can_approve_pull_request_reviews=true
 ```
@@ -46,7 +46,7 @@ on:
 
 jobs:
 	run:
-		uses: matheusmaldaner/sentinelbrowser/.github/workflows/sentinel-searcher-callable.yml@main
+		uses: matheusmaldaner/sentinelsearcher/.github/workflows/sentinel-searcher-callable.yml@main
 		with:
 			working_directory: "."  # adjust if needed
 			config_path: "sentinel.config.yaml"  # path in the target repo
