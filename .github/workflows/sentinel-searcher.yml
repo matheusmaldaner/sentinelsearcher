@@ -26,10 +26,10 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install package
         run: |
           python -m pip install --upgrade pip
-          python -m pip install anthropic pyyaml python-dotenv
+          python -m pip install ./sentinelsearcher
 
       - name: Verify repository paths
         run: |
@@ -39,11 +39,10 @@ jobs:
           ls -la sentinelsearcher/src/sentinelsearcher || true
 
       - name: Run Sentinel Searcher
-        working-directory: sentinelsearcher/src/sentinelsearcher
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          python main.py --config sentinel.config.yaml
+          sentinelsearcher --config sentinelsearcher/src/sentinelsearcher/sentinel.config.yaml
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
