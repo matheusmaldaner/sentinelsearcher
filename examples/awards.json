@@ -64,5 +64,11 @@
     "award_date": "2024-01-01",
     "award_picture": "",
     "award_description": "Most Popular award at the University of Florida AI Days Hackathon competition."
+  },
+  {
+    "award_name": "USPROC Undergraduate Statistics Class Project Competition - 2nd Place",
+    "award_date": "2024-11-01",
+    "award_picture": "",
+    "award_description": "2nd Place award in the Undergraduate Statistics Class Project Competition organized by the American Statistical Association for the project 'Optimizing Digital Learning Through Data Analytics and Natural Language Processing' completed with team members Justin Witter, Patrick Lehman, Raul Valle, and Eric Chao under Faculty Sponsor Elizabeth Johnson."
   }
 ]
