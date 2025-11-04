@@ -4,7 +4,7 @@
 
 *AI-powered web browsing and structured data extraction*
 
-[![PyPI](https://img.shields.io/pypi/v/sentinelsearcher.svg)](https://pypi.org/project/sentinelsearcher/)
+[![PyPI](https://img.shields.io/pypi/v/sentinelsearcher.svg)](https://test.pypi.org/project/sentinelsearcher/)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
