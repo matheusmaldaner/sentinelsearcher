@@ -15,6 +15,7 @@ class Job:
     instruction: str
     file_path: str
     schema: Dict[str, Any]
+    output_format: str = "json"
 
 @dataclass
 class Config:
