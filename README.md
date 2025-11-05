@@ -163,9 +163,3 @@ The workflow will automatically search the web based on your configuration and c
 ## 📄 License
 
 MIT License - feel free to use this in your projects!
-
----
-
-<div align="center">
-Made with ❤️ for intelligent web data extraction
-</div>
