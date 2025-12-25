@@ -1,25 +1,29 @@
+# Sentinel Searcher Example Configuration
+# =========================================
+# This file demonstrates how to configure search jobs.
+# Copy this to your project root and customize.
+
 api:
-  provider: "anthropic"
-  model: "claude-sonnet-4-20250514"
-  delay_between_jobs: 60  # Seconds to wait between jobs to avoid rate limits
+  # Choose your provider: "anthropic" or "openai"
+  provider: "openai"
+
+  # Model to use for searches
+  # Anthropic: claude-sonnet-4-20250514
+  # OpenAI: gpt-4o
+  model: "gpt-4o"
+
+  # Seconds to wait between jobs (helps avoid rate limits)
+  delay_between_jobs: 60
 
 jobs:
-  # Example: Track academic awards
-  - name: "academic-awards"
-    instruction: "Find recent academic awards and honors for Matheus Kunzler Maldaner in AI research"
-    file_path: "examples/awards.json"
-    schema:
-      type: "array"
-      items:
-        award_name: "string"
-        award_date: "YYYY-MM-DD"
-        award_picture: "string"
-        award_description: "string"
-
-  # Example: Track news mentions
+  # Example: Find news articles
   - name: "news-updates"
-    instruction: "Find recent news mentions of Matheus Kunzler Maldaner news in leadership at UF"
-    file_path: "examples/news.json"
+    instruction: |
+      Search for recent news articles about [Your Topic].
+      Focus on articles from the last 6 months.
+      Return only articles with verifiable URLs.
+    file_path: "examples/news.yaml"
+    output_format: "yaml"
     schema:
       type: "array"
       items:
@@ -27,3 +31,18 @@ jobs:
         url: "string"
         date: "YYYY-MM-DD"
         summary: "string"
+
+  # Example: Track awards and recognition
+  - name: "awards"
+    instruction: |
+      Find awards, honors, or recognition received by [Person/Organization].
+      Include academic awards, industry recognition, and competition wins.
+    file_path: "examples/awards.json"
+    output_format: "json"
+    schema:
+      type: "array"
+      items:
+        award_name: "string"
+        date: "YYYY-MM-DD"
+        organization: "string"
+        description: "string"

@@ -6,13 +6,13 @@ import sys
 import time
 from datetime import date as _date
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Union
 
-import anthropic
 import yaml
 from dotenv import load_dotenv
 
 from sentinelsearcher.config import load_config
+from sentinelsearcher.providers import WebSearchProvider, create_provider
 
 CONFIG_PLACEHOLDER = """api:
   provider: "anthropic"
@@ -89,19 +89,59 @@ def _extract_json_from_text(text: str) -> Any:
         return json.loads(m.group(1))
     raise ValueError("Could not parse JSON from model output")
 
+def _convert_dates_to_strings(obj: Any) -> Any:
+    """Recursively convert datetime.date objects to ISO format strings."""
+    if isinstance(obj, _date):
+        return obj.isoformat()
+    elif isinstance(obj, dict):
+        return {k: _convert_dates_to_strings(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_convert_dates_to_strings(item) for item in obj]
+    return obj
+
 def _extract_yaml_from_text(text: str) -> Any:
     import yaml, re
+
+    # If model says "no results" or similar, return empty array
+    no_results_phrases = [
+        "no news items", "no items found", "nothing found", "no results",
+        "empty array", "no new", "nothing new", "could not find"
+    ]
+    text_lower = text.lower()
+    if any(phrase in text_lower for phrase in no_results_phrases):
+        # Check if there's still an array in the text
+        if "[]" in text or not re.search(r'\[.*\{', text, re.DOTALL):
+            return []
+
+    data = None
     # Try direct parse
     try:
-        return yaml.safe_load(text)
+        data = yaml.safe_load(text)
     except Exception:
         pass
     # Try fenced code block
-    m = re.search(r"```(?:yaml)?\s*([\s\S]*?)\s*```", text, re.MULTILINE)
-    if m:
-        return yaml.safe_load(m.group(1))
+    if data is None:
+        m = re.search(r"```(?:yaml)?\s*([\s\S]*?)\s*```", text, re.MULTILINE)
+        if m:
+            try:
+                data = yaml.safe_load(m.group(1))
+            except Exception:
+                pass
     # Fallback to the whole text if no fences
-    return yaml.safe_load(text)
+    if data is None:
+        try:
+            data = yaml.safe_load(text)
+        except Exception:
+            return []  # Can't parse, return empty
+    # Handle case where model returns {items: [...]} instead of [...]
+    if isinstance(data, dict) and 'items' in data and isinstance(data['items'], list):
+        data = data['items']
+    # If still not a list, return empty
+    if not isinstance(data, list):
+        return []
+    # Convert any datetime.date objects to strings
+    data = _convert_dates_to_strings(data)
+    return data
 
 def _write_json_array(path: Path, data: List[Dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -137,7 +177,10 @@ def _validate_simple_schema(data: Any, schema: Dict[str, Any]) -> Tuple[bool, st
                 return False, f"Missing key '{k}' in item {idx}"
             v = item[k]
             if t in ("string", "example.png"):
-                if not isinstance(v, str):
+                # Be lenient: convert int/float to string
+                if isinstance(v, (int, float)):
+                    item[k] = str(v)
+                elif not isinstance(v, str):
                     return False, f"Key '{k}' in item {idx} should be string"
             elif t == "YYYY-MM-DD":
                 if isinstance(v, _date):
@@ -150,59 +193,85 @@ def _validate_simple_schema(data: Any, schema: Dict[str, Any]) -> Tuple[bool, st
                     return False, f"Key '{k}' in item {idx} should be YYYY-MM-DD"
     return True, ""
 
-def run_job(client: anthropic.Anthropic, model: str, instruction: str, schema: Dict[str, Any], file_path: str, output_format: str = "json", max_retries: int = 3) -> List[Dict[str, Any]]:
+def run_job(
+    provider: WebSearchProvider,
+    model: str,
+    instruction: str,
+    schema: Dict[str, Any],
+    file_path: str,
+    output_format: str = "json",
+    max_retries: int = 3,
+    extra_context: str = ""
+) -> List[Dict[str, Any]]:
+    """
+    Run a single search job using the configured provider.
+
+    Args:
+        provider: WebSearchProvider instance (Anthropic or OpenAI)
+        model: Model identifier
+        instruction: Search instruction
+        schema: Output schema definition
+        file_path: Path to output file
+        output_format: 'json' or 'yaml'
+        max_retries: Number of retry attempts for rate limits
+
+    Returns:
+        List of new items found
+    """
     dst = Path(file_path)
-    
+
     if output_format == "yaml":
         existing = _read_yaml_array(dst)
         format_prompt = "Return ONLY valid YAML, no prose. Do not wrap in markdown."
         schema_str = yaml.dump(schema, indent=2)
         existing_str = yaml.dump(existing, allow_unicode=True)
-    else: # default to json
+    else:  # default to json
         existing = _read_json_array(dst)
         format_prompt = "Return ONLY valid JSON, no prose. Do not wrap in markdown."
         schema_str = json.dumps(schema, indent=2)
         existing_str = json.dumps(existing, ensure_ascii=False, indent=2)
 
+    # Get today's date for context
+    from datetime import date
+    today = date.today().isoformat()
 
     system = (
         "You are a precise web researcher.\n"
+        f"Today's date: {today}\n\n"
         f"{format_prompt}\n"
-        f"The output MUST conform to this shape (array of objects): {schema_str}\n"
+        f"Output schema: {schema_str}\n"
         "Do not duplicate items that already exist in EXISTING_CONTENT.\n"
-        "If nothing new is found, return an empty array []."
+        "If nothing new is found, return an empty array [].\n"
     )
-    print(system)
 
-    user = (
-        f"Task: {instruction}\n\n"
-        f"EXISTING_CONTENT:\n{existing_str}\n"
-    )
+    # Build user prompt
+    user_parts = [f"Task: {instruction}"]
+
+    if extra_context:
+        user_parts.append(f"\nADDITIONAL_CONTEXT:\n{extra_context}")
+
+    user_parts.append(f"\nEXISTING_CONTENT:\n{existing_str}")
+
+    user = "\n".join(user_parts)
+
+    rate_limit_error = provider.get_rate_limit_error_class()
 
     # Retry logic with exponential backoff for rate limits
     for attempt in range(max_retries):
         try:
-            msg = client.messages.create(
+            text = provider.search_and_extract(
+                system=system,
+                user=user,
                 model=model,
                 max_tokens=2048,
-                system=system,
-                messages=[{"role": "user", "content": user}],
-                tools=[{
-                    "type": "web_search_20250305",
-                    "name": "web_search",
-                    "max_uses": 5
-                }],
+                max_search_uses=5,
             )
 
-            # Anthropic content is a list of text blocks
-            text = "".join(getattr(b, "text", "") for b in msg.content if getattr(b, "type", "") == "text")
-            
             if output_format == "yaml":
                 data = _extract_yaml_from_text(text)
             else:
                 data = _extract_json_from_text(text)
 
-            print(data)
             ok, err = _validate_simple_schema(data, schema)
             if not ok:
                 raise ValueError(f"Model output failed schema validation: {err}")
@@ -215,7 +284,7 @@ def run_job(client: anthropic.Anthropic, model: str, instruction: str, schema: D
                     _write_json_array(dst, merged)
             return data
 
-        except anthropic.RateLimitError:
+        except rate_limit_error:
             if attempt < max_retries - 1:
                 # Exponential backoff: 2^attempt * 30 seconds
                 wait_time = (2 ** attempt) * 30
@@ -223,36 +292,6 @@ def run_job(client: anthropic.Anthropic, model: str, instruction: str, schema: D
                 time.sleep(wait_time)
             else:
                 raise  # Re-raise on last attempt
-
-
-
-def main_deprecated():
-    # load .env file into environment variables
-    load_dotenv()
-
-    # set the api key from environment variable
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-
-    # initialize the client with the api key
-    client = anthropic.Anthropic(api_key=api_key)
-
-    # create a message with web search tool enabled
-    message = client.messages.create(
-        model="claude-sonnet-4-5",
-        max_tokens=1024,
-        messages=[
-            {
-                "role": "user",
-                "content": "Find the latest 3 news about Matheus Kunzler Maldaner"
-            }
-        ],
-        tools=[{
-            "type": "web_search_20250305",
-            "name": "web_search",
-            #"max_uses": 5
-        }]
-    )
-    print(message.content)
 
 
 
@@ -270,35 +309,32 @@ def main():
 
     print("Welcome to Sentinel Searcher!")
 
-    provider = None
+    provider_name = None
     model = None
     try:
         cfg = load_config(args.config)
-        provider = cfg.api.provider.lower()
+        provider_name = cfg.api.provider.lower()
         model = cfg.api.model
     except Exception as e:
         print(f"Failed to load config: {e}", file=sys.stderr)
         sys.exit(1)
 
-    if provider not in ("anthropic", "openai"):
-        print(f"Unsupported provider: {provider}", file=sys.stderr)
+    # Create provider instance
+    try:
+        provider = create_provider(provider_name)
+        print(f"Using provider: {provider_name} (model: {model})")
+    except ValueError as e:
+        print(f"Provider error: {e}", file=sys.stderr)
         sys.exit(1)
-
-    if provider == "anthropic":
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            print("ANTHROPIC_API_KEY not set", file=sys.stderr)
-            sys.exit(1)
-        client = anthropic.Anthropic(api_key=api_key)
-    else:
-        print("OpenAI provider not implemented yet in this runner.", file=sys.stderr)
+    except ImportError as e:
+        print(f"Import error: {e}", file=sys.stderr)
         sys.exit(1)
 
     delay_between_jobs = getattr(cfg.api, 'delay_between_jobs', 60)
 
     for idx, job in enumerate(cfg.jobs):
         try:
-            added = run_job(client, model, job.instruction, job.schema, job.file_path, job.output_format)
+            added = run_job(provider, model, job.instruction, job.schema, job.file_path, job.output_format)
             print(f"[{job.name}] completed. New items: {len(added)}")
 
             # Add delay between jobs to avoid rate limits (except after last job)

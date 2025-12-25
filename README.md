@@ -1,80 +1,76 @@
 <div align="center">
 
-# 🔍 Sentinel Searcher
+# Sentinel Searcher
 
-*AI-powered web browsing and structured data extraction*
+**AI-powered web search and structured data extraction**
 
-[![PyPI](https://img.shields.io/pypi/v/sentinelsearcher.svg)](https://test.pypi.org/project/sentinelsearcher/)
-![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
+[![PyPI](https://img.shields.io/pypi/v/sentinelsearcher.svg)](https://pypi.org/project/sentinelsearcher/)
+[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 </div>
 
 ---
 
-## 🧠 Overview
+## Overview
 
-**Sentinel Searcher** is a simple, powerful tool for browsing the web and retrieving structured data in JSON format. Define a schema, point it at a topic, and let AI agents search the web and return exactly the data you need.
+Sentinel Searcher is a tool for automated web research that returns structured data. Define a schema, describe what to search for, and let AI agents browse the web and return exactly the data you need in JSON or YAML format.
 
-Perfect for automated research, data collection, content curation, and keeping files up-to-date with the latest information from the web.
+**Supported Providers:**
+- **Anthropic Claude** - Uses `web_search_20250305` tool
+- **OpenAI GPT** - Uses `web_search_preview` via Responses API
+
+**Use Cases:**
+- Portfolio automation (awards, publications, news mentions)
+- Competitive intelligence gathering
+- Content curation and aggregation
+- Research data collection
 
 ---
 
-## 🚀 Quick Start
-
-### Installation
-
-Install from TestPyPI:
+## Installation
 
 ```bash
-uv pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple sentinelsearcher==0.1.0
+pip install sentinelsearcher
 ```
 
-Or add to your project:
+For OpenAI support:
 
 ```bash
-uv add sentinelsearcher
+pip install sentinelsearcher[openai]
 ```
 
-### Configuration
+---
 
-**1. Set up your API keys**
+## Quick Start
 
-Copy `.env-example` and rename it to `.env`, then fill in your API key:
+### 1. Set up API keys
+
+Create a `.env` file or set environment variables:
 
 ```bash
+# For Anthropic (default)
 ANTHROPIC_API_KEY=your_key_here
+
+# For OpenAI
+OPENAI_API_KEY=your_key_here
 ```
 
-**2. Create your configuration**
+### 2. Create configuration
 
-Populate `sentinel.config.yaml` with the path to the file you want updated and the specific schema you want the LLM to follow.
-
-Example configuration:
+Create `sentinel.config.yaml`:
 
 ```yaml
 api:
-  provider: "anthropic"
-  model: "claude-sonnet-4-20250514"
-  delay_between_jobs: 60  # Seconds to wait between jobs to avoid rate limits
+  provider: "anthropic"  # or "openai"
+  model: "claude-sonnet-4-20250514"  # or "gpt-4o"
+  delay_between_jobs: 60
 
 jobs:
-  # Example: Track academic awards
-  - name: "academic-awards"
-    instruction: "Find recent academic awards and honors for [Your Name] in AI research"
-    file_path: "examples/awards.json"
-    schema:
-      type: "array"
-      items:
-        award_name: "string"
-        award_date: "YYYY-MM-DD"
-        award_picture: "string"
-        award_description: "string"
-
-  # Example: Track news mentions
   - name: "news-updates"
-    instruction: "Find recent news mentions of [Your Organization]"
-    file_path: "examples/news.json"
+    instruction: "Find recent news articles mentioning Acme Corp product launches"
+    file_path: "data/news.yaml"
+    output_format: "yaml"
     schema:
       type: "array"
       items:
@@ -82,84 +78,144 @@ jobs:
         url: "string"
         date: "YYYY-MM-DD"
         summary: "string"
+
+  - name: "awards"
+    instruction: "Find industry awards won by Acme Corp in 2024-2025"
+    file_path: "data/awards.json"
+    schema:
+      type: "array"
+      items:
+        award_name: "string"
+        date: "YYYY-MM-DD"
+        description: "string"
 ```
 
-**3. Run the searcher**
+### 3. Run
 
 ```bash
-sentinelsearcher
+sentinelsearcher --config sentinel.config.yaml
 ```
 
-The tool will search the web and update your files with structured JSON data matching your schema.
+Or generate starter files:
+
+```bash
+sentinelsearcher --start
+```
 
 ---
 
-## 🤖 GitHub Actions Automation
+## Python API
 
-You can easily run Sentinel Searcher as a GitHub workflow to automatically update your repository files on a schedule.
+```python
+from sentinelsearcher import run_sentinel_searcher, create_provider
 
-### Setting Up Secrets
+# Simple usage (reads provider from config)
+results = run_sentinel_searcher("sentinel.config.yaml")
 
-Set up your API keys as GitHub secrets either by navigating to "GitHub Actions → Secrets" or programmatically:
+for job_name, items in results.items():
+    print(f"{job_name}: {len(items)} new items found")
 
-```bash
-gh secret set OPENAI_API_KEY --body "$(grep OPENAI_API_KEY .env | cut -d '=' -f2-)"
-gh secret set ANTHROPIC_API_KEY --body "$(grep ANTHROPIC_API_KEY .env | cut -d '=' -f2-)"
+# With explicit provider
+provider = create_provider("openai")
+results = run_sentinel_searcher("config.yaml", provider=provider)
 ```
 
-Ensure you have the variables defined in your `.env` file.
+---
 
-**Don't have `gh` CLI installed?**
+## Configuration Reference
 
-```bash
-sudo apt install gh
-```
+### API Section
 
-**Authenticate GitHub CLI:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `provider` | string | Yes | `"anthropic"` or `"openai"` |
+| `model` | string | Yes | Model identifier |
+| `delay_between_jobs` | int | No | Seconds between jobs (default: 60) |
 
-Choose one method:
-1. `gh auth login`
-2. Set `GH_TOKEN="yourtoken"` in `.env` (generate at https://github.com/settings/tokens)
+**Recommended Models:**
+- Anthropic: `claude-sonnet-4-20250514`
+- OpenAI: `gpt-4o`
 
-**Enable PR creation:**
+### Job Section
 
-Allow GitHub Actions to create pull requests:
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Unique job identifier |
+| `instruction` | string | Yes | Search instruction for the AI |
+| `file_path` | string | Yes | Output file path |
+| `schema` | object | Yes | Output data schema |
+| `output_format` | string | No | `"json"` (default) or `"yaml"` |
 
-```bash
-gh api -X PUT /repos/OWNER/REPO/actions/permissions/workflow \
-  -f default_workflow_permissions=write \
-  -F can_approve_pull_request_reviews=true
-```
+### Schema Types
 
-*(Replace `OWNER/REPO` with your repository path)*
-
-### Workflow Configuration
-
-Add this workflow to `.github/workflows/sentinel-searcher.yml` in your repository:
+The schema uses a simplified format:
 
 ```yaml
-name: Sentinel Searcher
+schema:
+  type: "array"
+  items:
+    field_name: "string"       # Any text
+    date_field: "YYYY-MM-DD"   # ISO date format
+    image_field: "example.png" # Placeholder indicator
+```
+
+---
+
+## GitHub Actions
+
+Automate searches with a scheduled workflow:
+
+```yaml
+name: Sentinel Search
 
 on:
   schedule:
-    - cron: "0 3 * * *"  # daily at 3 AM UTC
-  workflow_dispatch: {}  # manual trigger
+    - cron: "0 9 1 * *"  # Monthly on the 1st
+  workflow_dispatch: {}
 
 jobs:
-  run:
-    uses: matheusmaldaner/sentinelsearcher/.github/workflows/sentinel-searcher-callable.yml@main
-    with:
-      working_directory: "."  # adjust if needed
-      config_path: "sentinel.config.yaml"  # path in the target repo
-      python_version: "3.11"
-    secrets:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  search:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install sentinelsearcher[openai]
+
+      - run: sentinelsearcher --config sentinel.config.yaml
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+      - uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: "chore: update from Sentinel Search"
+          title: "Sentinel Search: New content found"
+          branch: sentinel-updates
 ```
 
-The workflow will automatically search the web based on your configuration and create pull requests with updated data.
+### Setting Secrets
+
+```bash
+gh secret set OPENAI_API_KEY --body "sk-..."
+gh secret set ANTHROPIC_API_KEY --body "sk-ant-..."
+```
 
 ---
 
-## 📄 License
+## How It Works
 
-MIT License - feel free to use this in your projects!
+1. **Load Configuration** - Reads your YAML config with jobs and schemas
+2. **Read Existing Data** - Loads current file contents to avoid duplicates
+3. **Web Search** - AI agent searches the web based on your instruction
+4. **Extract & Validate** - Parses response and validates against schema
+5. **Deduplicate & Merge** - Combines new items with existing data
+6. **Write Output** - Saves updated file in JSON or YAML format
+
+---
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.

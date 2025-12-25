@@ -1,80 +1,61 @@
 """
 Sentinel Searcher - Automated web research and content updates.
 
-Use this package to:
-- Run automated web searches using Claude with web search
-- Extract structured data into JSON files
-- Automate content updates via GitHub Actions
+Supports multiple AI providers:
+- Anthropic Claude with web search (web_search_20250305)
+- OpenAI GPT with web search (web_search_preview via Responses API)
 
 CLI Usage:
     sentinelsearcher --config sentinel.config.yaml
 
 Python API Usage:
-    from sentinelsearcher import run_sentinel_searcher, create_client
+    from sentinelsearcher import run_sentinel_searcher, create_provider
 
-    # Simple usage
+    # Simple usage with Anthropic (default)
     run_sentinel_searcher(config_path="sentinel.config.yaml")
 
-    # Advanced usage
-    client = create_client()
+    # With OpenAI
+    provider = create_provider("openai")
     results = run_sentinel_searcher(
         config_path="sentinel.config.yaml",
-        client=client
+        provider=provider
     )
 """
 
 from sentinelsearcher.main import run_job, main
-from sentinelsearcher.config import load_config, Config, Job, APIConfig
-import anthropic
+from sentinelsearcher.config import load_config, Config, Job, APIConfig, ConfigError
+from sentinelsearcher.providers import (
+    WebSearchProvider,
+    AnthropicProvider,
+    OpenAIProvider,
+    create_provider,
+)
 import os
 from dotenv import load_dotenv
 from typing import Optional, Dict, Any, List
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = [
+    # Main entry points
     "run_sentinel_searcher",
-    "create_client",
     "run_job",
+    # Providers
+    "create_provider",
+    "WebSearchProvider",
+    "AnthropicProvider",
+    "OpenAIProvider",
+    # Configuration
     "load_config",
     "Config",
     "Job",
     "APIConfig",
+    "ConfigError",
 ]
-
-
-def create_client(api_key: Optional[str] = None) -> anthropic.Anthropic:
-    """
-    Create an Anthropic client with API key from environment or parameter.
-
-    Args:
-        api_key: Optional API key. If not provided, loads from ANTHROPIC_API_KEY env var.
-
-    Returns:
-        Configured Anthropic client
-
-    Raises:
-        ValueError: If API key is not provided and not found in environment
-
-    Example:
-        >>> client = create_client()
-        >>> # or
-        >>> client = create_client(api_key="your-api-key")
-    """
-    load_dotenv()
-
-    key = api_key or os.getenv("ANTHROPIC_API_KEY")
-    if not key:
-        raise ValueError(
-            "ANTHROPIC_API_KEY not provided and not found in environment. "
-            "Either pass api_key parameter or set ANTHROPIC_API_KEY in .env file."
-        )
-
-    return anthropic.Anthropic(api_key=key)
 
 
 def run_sentinel_searcher(
     config_path: str = "sentinel.config.yaml",
-    client: Optional[anthropic.Anthropic] = None,
+    provider: Optional[WebSearchProvider] = None,
     api_key: Optional[str] = None,
 ) -> Dict[str, List[Dict[str, Any]]]:
     """
@@ -82,8 +63,8 @@ def run_sentinel_searcher(
 
     Args:
         config_path: Path to sentinel.config.yaml file
-        client: Optional pre-configured Anthropic client
-        api_key: Optional API key (only used if client is not provided)
+        provider: Optional pre-configured WebSearchProvider instance
+        api_key: Optional API key (only used if provider is not provided)
 
     Returns:
         Dictionary mapping job names to their results
@@ -93,29 +74,29 @@ def run_sentinel_searcher(
         Exception: If any job fails
 
     Example:
-        >>> # Simple usage
+        >>> # Simple usage (reads provider from config)
         >>> results = run_sentinel_searcher("sentinel.config.yaml")
         >>> print(f"Found {len(results['academic-awards'])} awards")
 
-        >>> # With custom client
-        >>> client = create_client(api_key="your-key")
-        >>> results = run_sentinel_searcher("config.yaml", client=client)
+        >>> # With custom provider
+        >>> provider = create_provider("openai", api_key="your-key")
+        >>> results = run_sentinel_searcher("config.yaml", provider=provider)
 
         >>> # Access results
         >>> for job_name, items in results.items():
         ...     print(f"{job_name}: {len(items)} new items")
     """
+    load_dotenv()
+
     # Load config
     cfg = load_config(config_path)
 
-    # Create client if not provided
-    if client is None:
-        client = create_client(api_key=api_key)
+    # Create provider if not provided
+    if provider is None:
+        provider_name = cfg.api.provider.lower()
+        provider = create_provider(provider_name, api_key=api_key)
 
-    # Validate provider
-    provider = cfg.api.provider.lower()
-    if provider != "anthropic":
-        raise ValueError(f"Unsupported provider: {provider}. Only 'anthropic' is supported.")
+    model = cfg.api.model
 
     # Run all jobs and collect results
     results = {}
@@ -127,11 +108,12 @@ def run_sentinel_searcher(
         print(f"Running job: {job.name}")
 
         job_results = run_job(
-            client=client,
-            model=cfg.api.model,
+            provider=provider,
+            model=model,
             instruction=job.instruction,
             schema=job.schema,
-            file_path=job.file_path
+            file_path=job.file_path,
+            output_format=job.output_format,
         )
 
         results[job.name] = job_results

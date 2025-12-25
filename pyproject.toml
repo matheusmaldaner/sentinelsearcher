@@ -1,17 +1,52 @@
 [project]
 name = "sentinelsearcher"
-version = "0.1.1"
-description = "A simple way to browse the web and retrieve a json schema"
+version = "0.2.0"
+description = "AI-powered web search and structured data extraction using Anthropic Claude or OpenAI GPT"
 readme = "README.md"
+license = { text = "MIT" }
 authors = [
     { name = "Matheus Kunzler Maldaner", email = "matheus@sisnema.com.br" }
 ]
 requires-python = ">=3.11"
+keywords = [
+    "web-search",
+    "ai",
+    "anthropic",
+    "openai",
+    "claude",
+    "gpt",
+    "structured-data",
+    "web-scraping",
+    "automation",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
 dependencies = [
     "anthropic>=0.72.0",
     "python-dotenv>=1.2.1",
     "pyyaml>=6.0.3",
 ]
+
+[project.optional-dependencies]
+openai = ["openai>=1.50.0"]
+all = ["openai>=1.50.0"]
+
+[project.urls]
+Homepage = "https://github.com/matheusmaldaner/sentinelsearcher"
+Repository = "https://github.com/matheusmaldaner/sentinelsearcher"
+Documentation = "https://github.com/matheusmaldaner/sentinelsearcher#readme"
+Issues = "https://github.com/matheusmaldaner/sentinelsearcher/issues"
 
 [build-system]
 requires = ["uv_build>=0.8.14,<0.9.0"]
